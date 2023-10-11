@@ -141,6 +141,16 @@ class JVLDrive:
             )
         return param
 
+    def read_digital_io_register(self):
+        with CIPDriver(self.drive_path) as drive:
+            param=drive.generic_message(
+                service=Services.get_attribute_single,
+                class_code=b'\x65',  # module
+                instance=b'\x10', # b'\x2F',  # register 47
+                attribute=b'\x01',
+                data_type=DWORD,
+            )
+
 
 
 def read_serial_number_parameter(drive_path):
