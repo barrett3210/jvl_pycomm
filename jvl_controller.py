@@ -51,7 +51,9 @@ class JVLDrive:
                 class_code=b'\x64',
                 instance=b'\x02',
                 attribute=b'\x01',
-                request_data=UDINT.encode(value),            )
+                request_data=UDINT.encode(value),
+            )
+        print(param)
         return param
 
     def issue_general_command(self):
@@ -76,6 +78,33 @@ class JVLDrive:
             )
         return param
 
+
+    def set_requested_position_register(self, value):
+        with CIPDriver(self.drive_path) as drive:
+            param = drive.generic_message(
+                service=Services.set_attribute_single,
+                class_code=b'\x64',
+                instance=b'\x03',  # register 3, P_SOLL
+                attribute=b'\x01',
+                request_data=UDINT.encode(value),
+                data_type=UDINT,
+            )
+        print(param)
+        return param
+
+    def set_maximum_velocity_register(self, value):
+        with CIPDriver(self.drive_path) as drive:
+            param = drive.generic_message(
+                service=Services.set_attribute_single,
+                class_code=b'\x64',
+                instance=b'\x05',  # register 5, V_SOLL
+                attribute=b'\x01',
+                request_data=UDINT.encode(value),
+                data_type=UDINT,
+            )
+        print("velocty ", value)
+        return param
+
     def read_velocity(self):
         with CIPDriver(self.drive_path) as drive:
             param = drive.generic_message(
@@ -97,14 +126,25 @@ class JVLDrive:
             )
         return param.value
 
+    def read_position_1(self):
+        with CIPDriver(self.drive_path) as drive:
+            param = drive.generic_message(
+                service=Services.get_attribute_single,
+                class_code=b'\x64',
+                instance=b'\x31',  # register 49
+                attribute=b'\x01',
+                data_type=UDINT,
+            )
+        return param.value
+
     def read_assembly_object(self):
         with CIPDriver(self.drive_path) as drive:
             param = drive.generic_message(
                 service=Services.get_attribute_single,
                 class_code=b'\x04',
                 instance=b'\x65',
-                attribute=b'\x04',
-                data_type=None,
+                attribute=b'\x03',
+                data_type=DWORD,
             )
         return param.value
 
@@ -127,6 +167,51 @@ class JVLDrive:
                 instance=b'\x2F',  # register 47
                 attribute=b'\x01',
                 data_type=DWORD,
+            )
+        return param.value
+
+    def read_error_register(self):
+        with CIPDriver(self.drive_path) as drive:
+            param = drive.generic_message(
+                service=Services.get_attribute_single,
+                class_code=b'\x64',
+                instance=b'\x23', # register 35
+                attribute=b'\x01',
+                data_type=DWORD,
+            )
+        return param.value
+
+    def read_module_status_bits(self):
+        with CIPDriver(self.drive_path) as drive:
+            param = drive.generic_message(
+                service=Services.get_attribute_single,
+                class_code=b'\x65',
+                instance=b'\x30',  # register 48
+                attribute=b'\x01',
+                data_type=DWORD,
+            )
+        return param.value
+
+    def read_control_bits(self):
+        with CIPDriver(self.drive_path) as drive:
+            param = drive.generic_message(
+                service=Services.get_attribute_single,
+                class_code=b'\x64',
+                instance=b'\x24',   # register 36
+                attribute=b'\x01',
+                data_type=DWORD,
+            )
+        return param.value
+
+    def activate_command_register(self):
+        with CIPDriver(self.drive_path) as drive:
+            param = drive.generic_message(
+                service=Services.set_attribute_single,
+                class_code=b'\x65',
+                instance=b'\x0F',
+                attribute=b'\x01',
+                request_data=UDINT.encode(16777452),
+                data_type=UDINT
             )
         return param.value
 

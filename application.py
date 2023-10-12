@@ -46,14 +46,60 @@ class Application(tk.Tk):
         digital_io_label = ttk.Label(self, textvariable=self.digital_io_text)
         digital_io_label.grid(row=4, column=0)
 
+        self.error_register_text = tk.StringVar()
+        self.error_register_text.set("Blah")
+        error_register_label = ttk.Label(self,
+                                         textvariable=self.error_register_text)
+        error_register_label.grid(row=5, column=0)
+
+        self.module_status_bits_text = tk.StringVar()
+        self.module_status_bits_text.set("Status bits Blah")
+        status_bits_label = ttk.Label(self,
+                                      textvariable=self.module_status_bits_text)
+        status_bits_label.grid(row=6, column=0)
+
+
+
+        # *************
+        # Buttons
+        # Currently begin row 11
+        # *************
+
         self.position_mode_button = ttk.Button(self, text="position mode",
                                                command=self.on_position_mode_button)
-        self.position_mode_button.grid(row=5, column=0)
+        self.position_mode_button.grid(row=10, column=0)
 
         self.passive_mode_button = ttk.Button(self, text="passive mode",
                                               command=self.on_passive_mode_button)
-        self.passive_mode_button.grid(row=6, column=0)
+        self.passive_mode_button.grid(row=11, column=0)
 
+        self.print_error_bits_button = ttk.Button(self,
+                                                  text="Print error bits",
+                                                  command=self.on_print_error_bits_button)
+        self.print_error_bits_button.grid(row=12, column=0)
+
+        self.homing_button = ttk.Button(self,
+                                        text="Homing",
+                                        command=self.on_homing_button)
+        self.homing_button.grid(row=13, column=0)
+
+
+        self.move_to_position_try_button = ttk.Button(self,
+                                                      text="Move",
+                                                      command=self.on_move_to_position_try_button)
+        self.move_to_position_try_button.grid(row=14, column=0)
+
+
+        self.command_register_button = ttk.Button(self,
+                                                  text="Command Register",
+                                                  command=self.on_command_register_button)
+        self.command_register_button.grid(row=15, column=0)
+
+
+
+        # ************
+        # update labels
+        # ************
         self.update_labels()
 
     def on_position_mode_button(self):
@@ -62,20 +108,60 @@ class Application(tk.Tk):
     def on_passive_mode_button(self):
         jvl_drive.set_operating_mode(0)
 
+    def on_homing_button(self):
+        jvl_drive.set_operating_mode(13)
+
+    def on_print_error_bits_button(self):
+        print("Error register bits: ")
+        print(jvl_drive.read_error_register())
+        print()
+        print("Module status bits: ")
+        print(jvl_drive.read_module_status_bits())
+
+    def on_move_to_position_try_button(self):
+        print("Move to position")
+        position = 900
+        jvl_drive.set_requested_position_register(position)
+
+    def on_command_register_button(self):
+        print("activate command register")
+        response = jvl_drive.activate_command_register()
+        print(response)
+
     def update_labels(self, poll=True):
         now = datetime.datetime.now().time()
         self.time_label_text.set(time.strftime("%H:%M:%S"))
+
         operating_mode = jvl_drive.get_operating_mode()
         self.operating_mode_text.set(f"Operating mode: {operating_mode}")
+
         current_position = jvl_drive.read_current_position()
         self.position_text.set(f"Current position: {current_position}")
+
         current_velocity = jvl_drive.read_velocity()
         self.velocity_text.set(f"Current velocity: {current_velocity}")
+
         digital_io = jvl_drive.read_digital_io_register()
-        self.digital_io_text.set(f"Digital IO: {digital_io}")
+        self.digital_io_text.set(f"Input 1: {digital_io[0]}\n"
+                                 f"Input 2: {digital_io[1]}\n"
+                                 f"Input 3: {digital_io[2]}\n")
+
+
+        error_register = jvl_drive.read_error_register()
+        self.error_register_text.set(f"In position: {error_register[4]}\n"
+                                     f"Accelerating: {error_register[5]}\n"
+                                     f"Decelerating: {error_register[6]}\n"
+                                     f"Position Limit: {error_register[7]}\n"
+                                     f"Any error: {error_register[24]}\n")
+
+        module_status_bits = jvl_drive.read_module_status_bits()
+        self.module_status_bits_text.set(f"Cyclic communication: {module_status_bits[0]}")
+
+
+
 
         if poll:
-            self.after(20, self.update_labels)
+            self.after(100, self.update_labels)
 
 
 
@@ -88,7 +174,21 @@ if __name__ == '__main__':
     print("Identity" , jvl_drive.identity)
     print("is connected", jvl_drive.is_connected())
     time.sleep(1)
-    print(jvl_drive.read_digital_io_register())
+    print("Error register 35:")
+    print(jvl_drive.read_error_register())
+    print()
+    print("Status bits 48")
+    print(jvl_drive.read_module_status_bits())
+
+    print("set maximum velocity")
+    velocity = jvl_drive.set_maximum_velocity_register(200)
+
+    print("read control bits")
+    control_bits = jvl_drive.read_control_bits()
+    print(control_bits)
+
+    print("read position 1")
+    print(jvl_drive.read_position_1())
 
     app = Application()
     app.mainloop()
