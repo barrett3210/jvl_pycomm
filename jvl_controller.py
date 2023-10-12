@@ -33,7 +33,6 @@ class JVLDrive:
         with CIPDriver(self.drive_path) as drive:
             return drive.list_identity(self.drive_path)
 
-
     def get_operating_mode(self):
         with CIPDriver(self.drive_path) as drive:
             param = drive.generic_message(
@@ -41,9 +40,7 @@ class JVLDrive:
                 class_code=b'\x64',
                 instance=b'\x02',
                 attribute=b'\x01',
-                # data_type=UDINT(n_bytes(1))
                 data_type=UDINT,
-                # data_type=None
             )
         return param.value
 
@@ -54,10 +51,7 @@ class JVLDrive:
                 class_code=b'\x64',
                 instance=b'\x02',
                 attribute=b'\x01',
-                request_data=UDINT.encode(value),
-                # data_type=UDINT,
-                # connected=True,
-            )
+                request_data=UDINT.encode(value),            )
         return param
 
     def issue_general_command(self):
@@ -69,8 +63,6 @@ class JVLDrive:
                 attribute=b'\x01',
             )
         return param
-
-
 
     def set_pos_reg_7(self, value):
         with CIPDriver(self.drive_path) as drive:
@@ -105,7 +97,6 @@ class JVLDrive:
             )
         return param.value
 
-
     def read_assembly_object(self):
         with CIPDriver(self.drive_path) as drive:
             param = drive.generic_message(
@@ -114,10 +105,8 @@ class JVLDrive:
                 instance=b'\x65',
                 attribute=b'\x04',
                 data_type=None,
-
             )
-            return param
-
+        return param.value
 
     def read_current_position(self):
         with CIPDriver(self.drive_path) as drive:
@@ -130,27 +119,16 @@ class JVLDrive:
             )
         return param.value
 
-    def read_assembly_object(self):
-        with CIPDriver(self.drive_path) as drive:
-            param=drive.generic_message(
-                service=Services.get_attribute_single,
-                class_code=b'\x64',
-                instance=b'\x23',
-                attribute=b'\x01',
-                data_type=DWORD,
-            )
-        return param
-
     def read_digital_io_register(self):
         with CIPDriver(self.drive_path) as drive:
             param=drive.generic_message(
                 service=Services.get_attribute_single,
                 class_code=b'\x65',  # module
-                instance=b'\x10', # b'\x2F',  # register 47
+                instance=b'\x2F',  # register 47
                 attribute=b'\x01',
                 data_type=DWORD,
             )
-
+        return param.value
 
 
 def read_serial_number_parameter(drive_path):
