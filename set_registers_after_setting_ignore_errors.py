@@ -26,11 +26,37 @@ if __name__ == '__main__':
     print()
     time.sleep(0.5)
 
-    module_setup_bits = jvl_drive.read_module_register(6, data_type=DWORD)
-    print(f"Module register 6 setup bits")
-    print(module_setup_bits)
+    # homing  **************
 
+    # v_home = jvl_drive.read_motor_register(40, data_type=DINT)
+    # t_home = jvl_drive.read_motor_register(41, data_type=DINT)
+    # home_mode = jvl_drive.read_motor_register(42, data_type=DWORD)
+    # start_mode = jvl_drive.read_motor_register(37, data_type=DWORD)
+    #
+    # print(f"Homing velocity: {v_home}  Homing torque: {t_home}")
+    # print("home mode bits")
+    # for i, bit in enumerate(home_mode):
+    #     print(i, int(home_mode[bit]))
+    #
+    # print("start mode bits")
+    # for i, bit in enumerate(start_mode):
+    #     print(i, int(start_mode[bit]))
+    #
+    # print()
+    #
+    # print("Set operating mode to 12 (torque based zero search):")
+    # jvl_drive.set_motor_register(2, request_data=DINT.encode(12))
+    #
+    #
+    # time.sleep(5)
+    # home_mode = jvl_drive.read_motor_register(42, data_type=DWORD)
+    # print("home mode bits")
+    # for i, bit in enumerate(home_mode):
+    #     print(i, int(home_mode[bit]))
 
+    # position mode *************
+    # set passive mode, just in case
+    jvl_drive.set_motor_register(2, request_data=DINT.encode(0))
 
     print("Set desired velocity")
     jvl_drive.set_motor_register(5, request_data=DINT.encode(277))
@@ -40,18 +66,43 @@ if __name__ == '__main__':
     print(jvl_drive.read_motor_register(5, data_type=DINT))
     time.sleep(0.5)
 
+    print("Set desired position")
+    jvl_drive.set_motor_register(3, request_data=DINT.encode(100000))
+
+    print("Change to position mode")
+    jvl_drive.set_motor_register(2, request_data=DINT.encode(2))
+
+    time.sleep(4)
+    current_position = jvl_drive.read_motor_register(10, data_type=DINT)
+    print(f"Current position {current_position}")
 
 
-    print("Set operating mode to 1 (velocity):")
-    jvl_drive.set_motor_register(2, request_data=DINT.encode(1))
+
+
+
+
+    # velocity mode ****************
+
+    # print("Set desired velocity")
+    # jvl_drive.set_motor_register(5, request_data=DINT.encode(277))
+    # time.sleep(0.5)
     #
-    time.sleep(2)
-    print("Read operating mode")
-    print(jvl_drive.read_motor_register(2, data_type=UDINT))
-    print("Current Position ", jvl_drive.read_motor_register(10, data_type=DINT))
-    print("Current desired velocity ", jvl_drive.read_motor_register(5, data_type=DINT))
+    # print("Read Desired Velocity")
+    # print(jvl_drive.read_motor_register(5, data_type=DINT))
+    # time.sleep(0.5)
     #
     #
-    time.sleep(0.5)
-    print("Set operating mode to 0 (passive):")
-    jvl_drive.set_motor_register(2, request_data=DINT.encode(0))
+    #
+    # print("Set operating mode to 1 (velocity):")
+    # jvl_drive.set_motor_register(2, request_data=DINT.encode(1))
+    # #
+    # time.sleep(2)
+    # print("Read operating mode")
+    # print(jvl_drive.read_motor_register(2, data_type=UDINT))
+    # print("Current Position ", jvl_drive.read_motor_register(10, data_type=DINT))
+    # print("Current desired velocity ", jvl_drive.read_motor_register(5, data_type=DINT))
+    # #
+    # #
+    # time.sleep(0.5)
+    # print("Set operating mode to 0 (passive):")
+    # jvl_drive.set_motor_register(2, request_data=DINT.encode(0))

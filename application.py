@@ -118,7 +118,7 @@ class Application(tk.Tk):
         jvl_drive.set_operating_mode(0)
 
     def on_homing_button(self):
-        jvl_drive.set_operating_mode(13)
+        jvl_drive.set_operating_mode(12)
 
     def on_velocity_mode_button(self):
         jvl_drive.set_motor_register(2,
@@ -126,13 +126,13 @@ class Application(tk.Tk):
         app.after(100)
         jvl_drive.set_motor_register(2,
                                      request_data=UDINT.encode(1))
-        jvl_drive.set_motor_register(5,
-                                     request_data=DINT.encode(20))
+        # jvl_drive.set_motor_register(5,
+        #                              request_data=DINT.encode(277))
 
     def on_change_velocity_direction(self):
         current_desired_velocity = jvl_drive.read_motor_register(5,
                                                                  data_type=DINT)
-        print(current_desired_velocity)
+        print(f"Current desired velocity:  {current_desired_velocity}")
         new_desired_velocity = DINT.encode(-1 * current_desired_velocity)
         print(new_desired_velocity)
         changed = jvl_drive.set_motor_register(5,
@@ -150,8 +150,9 @@ class Application(tk.Tk):
 
     def on_move_to_position_try_button(self):
         print("Move to position")
-        position = 900
-        jvl_drive.set_requested_position_register(position)
+        print("need to update this command")
+        # position = 900
+        # jvl_drive.set_requested_position_register(position)
 
     def on_command_register_button(self):
         print("activate command register")

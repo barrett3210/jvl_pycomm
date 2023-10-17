@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+
+
 from pycomm3 import CIPDriver
 from pycomm3 import Services
 
@@ -12,10 +15,35 @@ from pycomm3 import UINT
 from pycomm3.cip import n_bytes
 
 
+
+
 def discover_drive_addresses():
     drives = CIPDriver.discover()
     ip_addresses = [drive['ip_address'] for drive in drives]
     return ip_addresses
+
+
+# multiply by conversion factor on read; divide by factor on set
+@dataclass
+class Register:
+    name: str
+    number: int
+    data_type: None
+    conversion: float
+    category: str
+    unit: str
+
+
+registers = {
+    'mode': Register('MODE_REG', 2, DINT, 1, 'motor', ''),
+    'requested_position': Register('P_SOLL', 3, DINT, 1, 'motor', 'counts'),
+    'requested_velocity': Register('V_SOLL', 5, DINT, 0.352, 'motor', 'RPM'),
+    'requested_acceleration': Register('A_SOLL', 6, DINT, 270.85, 'motor', 'RPM/s2'),
+    'requested_torque': Register('T_SOLL', 7, DINT, 0.293, 'motor', '%'),
+    'current_position': Register('P_IST', 10, DINT, 1, 'motor', 'counts'),
+    'current_velocity': Register('V_IST_16', 11, DINT, 0.352, 'motor', 'RPM'),
+    'P7': Register('P7', 61, DINT, 1, 'motor', 'counts'),
+}
 
 
 class JVLDrive:
@@ -32,6 +60,22 @@ class JVLDrive:
     def identify_drive(self):
         with CIPDriver(self.drive_path) as drive:
             return drive.list_identity(self.drive_path)
+
+    def read_register(self, register_name):
+        register = registers[register_name]
+        if register.category == 'motor':
+            class_code = b'\x64'
+        else:
+            class_code = b'\x65'
+        with CIPDriver(self.drive_path) as drive:
+            param = drive.generic_message(
+                service=Services.get_attribute_single,
+                class_code=class_code,
+                instance=register.number,
+                attribute=b'\x01',
+                data_type=register.data_type,
+            )
+        return param.value * register.conversion, register.unit
 
     def read_motor_register(self, register, data_type=None):
         with CIPDriver(self.drive_path) as drive:
@@ -106,87 +150,7 @@ class JVLDrive:
         print(param)
         return param
 
-    def issue_general_command(self):
-        with CIPDriver(self.drive_path) as drive:
-            param = drive.generic_message(
-                service=Services.set_attribute_single,
-                class_code=b'\x65',
-                instance=UDINT.encode(983040),
-                attribute=b'\x01',
-            )
-        return param
-
-    def set_pos_reg_7(self, value):
-        with CIPDriver(self.drive_path) as drive:
-            param=drive.generic_message(
-                service=Services.set_attribute_single,
-                class_code=b'\x64',
-                instance=b'\x3D',
-                attribute=b'\x01',
-                request_data=DINT.encode(value),
-                data_type=DINT,
-            )
-        return param
-
-
-    def set_requested_position_register(self, value):
-        with CIPDriver(self.drive_path) as drive:
-            param = drive.generic_message(
-                service=Services.set_attribute_single,
-                class_code=b'\x64',
-                instance=b'\x03',  # register 3, P_SOLL
-                attribute=b'\x01',
-                request_data=DINT.encode(value),
-                data_type=DINT,
-            )
-        print(param)
-        return param
-
-    def set_maximum_velocity_register(self, value):
-        with CIPDriver(self.drive_path) as drive:
-            param = drive.generic_message(
-                service=Services.set_attribute_single,
-                class_code=b'\x64',
-                instance=b'\x05',  # register 5, V_SOLL
-                attribute=b'\x01',
-                request_data=DINT.encode(value),
-                data_type=DINT,
-            )
-        print("velocty ", value)
-        return param
-
-    def read_velocity(self):
-        with CIPDriver(self.drive_path) as drive:
-            param = drive.generic_message(
-                service=Services.get_attribute_single,
-                class_code=b'\x64',
-                instance=b'\x0C',
-                attribute=b'\x01',
-                data_type=DINT,
-            )
-        return param.value
-
-    def read_torque(self):
-        with CIPDriver(self.drive_path) as drive:
-            param = drive.generic_message(
-                service=Services.get_attribute_single,
-                class_code=b'\x64',
-                instance=169,
-                data_type=UDINT,
-            )
-        return param.value
-
-    def read_position_1(self):
-        with CIPDriver(self.drive_path) as drive:
-            param = drive.generic_message(
-                service=Services.get_attribute_single,
-                class_code=b'\x64',
-                instance=b'\x31',  # register 49
-                attribute=b'\x01',
-                data_type=DINT,
-            )
-        return param.value
-
+    # I'm still not doing this right....
     def read_assembly_object(self):
         with CIPDriver(self.drive_path) as drive:
             param = drive.generic_message(
@@ -194,7 +158,7 @@ class JVLDrive:
                 class_code=b'\x04',
                 instance=b'\x65',
                 attribute=b'\x03',
-                data_type=DWORD,
+                data_type=None,
             )
         return param.value
 
@@ -208,6 +172,10 @@ class JVLDrive:
                 data_type=DINT,
             )
         return param.value
+
+    def read_velocity(self):
+        velocity = self.read_motor_register(11, data_type=DINT)
+        return velocity
 
     def read_digital_io_register(self):
         with CIPDriver(self.drive_path) as drive:
@@ -265,18 +233,6 @@ class JVLDrive:
             )
         return param.value
 
-
-def read_serial_number_parameter(drive_path):
-    with CIPDriver(drive_path) as drive:
-        param = drive.generic_message(
-            service=Services.get_attribute_single,
-            class_code=b'\x01',
-            instance=1,
-            attribute=6,
-            data_type=SHORT_STRING,
-
-        )
-    print(param)
 
 
 
