@@ -33,6 +33,56 @@ class JVLDrive:
         with CIPDriver(self.drive_path) as drive:
             return drive.list_identity(self.drive_path)
 
+    def read_motor_register(self, register, data_type=None):
+        with CIPDriver(self.drive_path) as drive:
+            param = drive.generic_message(
+                service=Services.get_attribute_single,
+                class_code=b'\x64',
+                instance=register,
+                attribute=b'\x01',
+                data_type=data_type,
+            )
+        return param.value
+
+    def read_module_register(self, register, data_type=None):
+        with CIPDriver(self.drive_path) as drive:
+            param = drive.generic_message(
+                service=Services.get_attribute_single,
+                class_code=b'\x65',
+                instance=register,
+                attribute=b'\x01',
+                data_type=data_type,
+            )
+        return param.value
+
+    def set_motor_register(self, register,
+                           data_type=None,
+                           request_data=None):
+        with CIPDriver(self.drive_path) as drive:
+            param = drive.generic_message(
+                service=Services.set_attribute_single,
+                class_code=b'\x64',
+                instance=register,
+                attribute=b'\x01',
+                data_type=data_type,
+                request_data=request_data
+            )
+        return param
+
+    def set_module_register(self, register,
+                            data_type=None,
+                            request_data=None):
+        with CIPDriver(self.drive_path) as drive:
+            param = drive.generic_message(
+                service=Services.set_attribute_single,
+                class_code=b'\x65',
+                instance=register,
+                attribute=b'\x01',
+                data_type=data_type,
+                request_data=request_data
+            )
+        return param
+
     def get_operating_mode(self):
         with CIPDriver(self.drive_path) as drive:
             param = drive.generic_message(
@@ -73,8 +123,8 @@ class JVLDrive:
                 class_code=b'\x64',
                 instance=b'\x3D',
                 attribute=b'\x01',
-                request_data=UDINT.encode(value),
-                data_type=UDINT,
+                request_data=DINT.encode(value),
+                data_type=DINT,
             )
         return param
 
@@ -86,8 +136,8 @@ class JVLDrive:
                 class_code=b'\x64',
                 instance=b'\x03',  # register 3, P_SOLL
                 attribute=b'\x01',
-                request_data=UDINT.encode(value),
-                data_type=UDINT,
+                request_data=DINT.encode(value),
+                data_type=DINT,
             )
         print(param)
         return param
@@ -99,8 +149,8 @@ class JVLDrive:
                 class_code=b'\x64',
                 instance=b'\x05',  # register 5, V_SOLL
                 attribute=b'\x01',
-                request_data=UDINT.encode(value),
-                data_type=UDINT,
+                request_data=DINT.encode(value),
+                data_type=DINT,
             )
         print("velocty ", value)
         return param
@@ -112,7 +162,7 @@ class JVLDrive:
                 class_code=b'\x64',
                 instance=b'\x0C',
                 attribute=b'\x01',
-                data_type=UDINT,
+                data_type=DINT,
             )
         return param.value
 
@@ -133,7 +183,7 @@ class JVLDrive:
                 class_code=b'\x64',
                 instance=b'\x31',  # register 49
                 attribute=b'\x01',
-                data_type=UDINT,
+                data_type=DINT,
             )
         return param.value
 
@@ -155,7 +205,7 @@ class JVLDrive:
                 class_code=b'\x64',
                 instance=b'\x0A',
                 attribute=b'\x01',
-                data_type=UDINT,
+                data_type=DINT,
             )
         return param.value
 
@@ -229,36 +279,4 @@ def read_serial_number_parameter(drive_path):
     print(param)
 
 
-def send_a_message(ip_address):
-    with CIPDriver(ip_address) as drive:
-        try:
-            response = drive.generic_message(
-                service=Services.get_attribute_single,
-                class_code=b'\x64',
-                instance=b'\x02',
-                attribute=b'\x0C',
-                data_type=None,
-            )
-            return response
 
-        except Exception as e:
-            print("raised an exception")
-            print(e)
-
-
-# from top of p. 86
-def read_operating_mode(ip_address):
-    with CIPDriver(ip_address) as drive:
-        try:
-            response = drive.generic_message(
-                service=Services.get_attribute_single,
-                class_code=b'\x64', # pre-configured motor register
-                instance=b'\x02', # Mode register in the motor
-                attribute=b'\x01',
-                data_type=None,
-            )
-            return response
-
-        except Exception as e:
-            print("raised an exception")
-            print(e)

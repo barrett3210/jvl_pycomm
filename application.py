@@ -2,7 +2,7 @@ import datetime
 import numpy as np
 
 import jvl_controller as jvl
-from pycomm3 import DWORD, UINT, UDINT
+from pycomm3 import DWORD, UINT, UDINT, DINT
 
 import time
 
@@ -62,8 +62,12 @@ class Application(tk.Tk):
 
         # *************
         # Buttons
-        # Currently begin row 11
+        # Currently begin row 9
         # *************
+
+        self.velocity_mode_button = ttk.Button(self, text="velocity mode",
+                                               command=self.on_velocity_mode_button)
+        self.velocity_mode_button.grid(row=9, column=0)
 
         self.position_mode_button = ttk.Button(self, text="position mode",
                                                command=self.on_position_mode_button)
@@ -95,6 +99,11 @@ class Application(tk.Tk):
                                                   command=self.on_command_register_button)
         self.command_register_button.grid(row=15, column=0)
 
+        self.change_velocity_direction_button = ttk.Button(self,
+                                                           text="Change direction",
+                                                           command=self.on_change_velocity_direction)
+        self.change_velocity_direction_button.grid(row=16, column=0)
+
 
 
         # ************
@@ -110,6 +119,27 @@ class Application(tk.Tk):
 
     def on_homing_button(self):
         jvl_drive.set_operating_mode(13)
+
+    def on_velocity_mode_button(self):
+        jvl_drive.set_motor_register(2,
+                                     request_data=UDINT.encode(0))
+        app.after(100)
+        jvl_drive.set_motor_register(2,
+                                     request_data=UDINT.encode(1))
+        jvl_drive.set_motor_register(5,
+                                     request_data=DINT.encode(20))
+
+    def on_change_velocity_direction(self):
+        current_desired_velocity = jvl_drive.read_motor_register(5,
+                                                                 data_type=DINT)
+        print(current_desired_velocity)
+        new_desired_velocity = DINT.encode(-1 * current_desired_velocity)
+        print(new_desired_velocity)
+        changed = jvl_drive.set_motor_register(5,
+                                               request_data=new_desired_velocity)
+        print(changed)
+
+
 
     def on_print_error_bits_button(self):
         print("Error register bits: ")
@@ -174,21 +204,23 @@ if __name__ == '__main__':
     print("Identity" , jvl_drive.identity)
     print("is connected", jvl_drive.is_connected())
     time.sleep(1)
-    print("Error register 35:")
-    print(jvl_drive.read_error_register())
-    print()
-    print("Status bits 48")
-    print(jvl_drive.read_module_status_bits())
 
-    print("set maximum velocity")
-    velocity = jvl_drive.set_maximum_velocity_register(200)
-
-    print("read control bits")
-    control_bits = jvl_drive.read_control_bits()
-    print(control_bits)
-
-    print("read position 1")
-    print(jvl_drive.read_position_1())
+    jvl_drive.set_motor_register(2, request_data=UDINT.encode(0))
+    # print("Error register 35:")
+    # print(jvl_drive.read_error_register())
+    # print()
+    # print("Status bits 48")
+    # print(jvl_drive.read_module_status_bits())
+    #
+    # print("set maximum velocity")
+    # velocity = jvl_drive.set_maximum_velocity_register(200)
+    #
+    # print("read control bits")
+    # control_bits = jvl_drive.read_control_bits()
+    # print(control_bits)
+    #
+    # print("read position 1")
+    # print(jvl_drive.read_position_1())
 
     app = Application()
     app.mainloop()
