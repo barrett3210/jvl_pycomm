@@ -183,6 +183,12 @@ class JVLDrive:
     def read_control_bits(self):
         control_bits = self.read_motor_register(36, data_type=DWORD)
 
+    def read_requested_items(self):
+        requested_position = self.read_motor_register(3, data_type=DINT)
+        requested_velocity = self.read_motor_register(5, data_type=DINT)
+        requested_torque = self.read_motor_register(7, data_type=DINT)
+        return (requested_position, requested_velocity, requested_torque)
+
 
 
 
