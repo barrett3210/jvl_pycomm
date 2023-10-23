@@ -6,7 +6,6 @@ import bitstring
 
 from typing import Any, Type, Dict, Tuple, Union
 
-
 from pycomm3 import CIPDriver
 from pycomm3 import Services
 from pycomm3 import Struct
@@ -21,8 +20,11 @@ from pycomm3 import UINT
 
 from pycomm3.cip import n_bytes
 
-from config import read_assembly, requested_items, in_position, Convert
-from config import move_down_distance
+import config
+
+
+# from config import read_assembly, requested_items, in_position, Convert
+# from config import move_down_distance
 
 
 def discover_drive_addresses():
@@ -60,7 +62,7 @@ class WriteAssembly(Struct(
 
 
 def get_current_stored_position_cm():
-    current_position_cm = read_assembly['position'] * Convert.COUNT2CM.value
+    current_position_cm = config.read_assembly['position'] * config.Convert.COUNT2CM.value
     return current_position_cm
 
 
@@ -70,6 +72,8 @@ class JVLDrive:
         self.connected = self.is_connected()
         self.identity = self.identify_drive()
         self.status = self.identity['status']
+        self.set_operating_mode(0)
+        self.set_startup_registers()
 
     def is_connected(self):
         with CIPDriver(self.drive_path) as drive:
@@ -78,6 +82,12 @@ class JVLDrive:
     def identify_drive(self):
         with CIPDriver(self.drive_path) as drive:
             return drive.list_identity(self.drive_path)
+
+    def set_startup_registers(self):
+        for register in config.startup_register_values:
+            self.set_motor_register(
+                register,
+                request_data=DINT.encode(config.startup_register_values[register]))
 
     def read_motor_register(self, register, data_type=None):
         with CIPDriver(self.drive_path) as drive:
@@ -199,21 +209,25 @@ class JVLDrive:
         return (requested_position, requested_velocity, requested_torque)
 
     def set_requested_position(self, requested_position_cm):
-        requested_position_counts = int(requested_position_cm * Convert.CM2COUNT.value)
+        requested_position_counts = int(requested_position_cm * config.Convert.CM2COUNT.value)
         self.set_motor_register(3, request_data=DINT.encode(requested_position_counts))
 
     def move_down(self):
         print("jvl drive move down")
         current_position_cm = get_current_stored_position_cm()
         print("Current position ", current_position_cm)
-        requested_position_cm = current_position_cm + move_down_distance
+        requested_position_cm = current_position_cm + config.move_down_distance
         print("Requested position ", requested_position_cm)
         self.set_requested_position(requested_position_cm)
-        time.sleep(0.1)
+        time.sleep(0.01)
         self.set_operating_mode(2)
         print("finished jvl drive move down")
 
-
-
-
-
+    def retract_probe(self):
+        print("jvl drive retract probe")
+        requested_position_cm = config.min_position_counts * config.Convert.COUNT2CM.value
+        print(f"Request to move to position {requested_position_cm} cm")
+        self.set_requested_position(requested_position_cm)
+        time.sleep(0.01)
+        self.set_operating_mode(2)
+        print("finished jvl drive retract probe")

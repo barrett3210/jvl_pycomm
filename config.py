@@ -6,6 +6,7 @@ in_position = False
 
 move_down_distance = 2.5
 
+min_position_counts = 10000
 
 class Convert(Enum):
     COUNT2CM = 0.0000206809
@@ -14,3 +15,12 @@ class Convert(Enum):
     VELOCITY2CMSEC = 0.00099428
     PCT2TORQUE = 3.41
     TORQUE2PCT = 0.293255132
+
+startup_register_values = {
+    5: int(0.25 * Convert.CMSEC2VELOCITY.value),  # Req. velocity
+    6: int(4875 / 270),  # Req. acceleration
+    7: int(30 * Convert.PCT2TORQUE.value),  # Req. torque
+    38: 0,  # Homing position
+    40: -int(0.12 * Convert.CMSEC2VELOCITY.value),  # Homing velocity
+    41: int(30 * Convert.PCT2TORQUE.value),  # Homing torque
+}

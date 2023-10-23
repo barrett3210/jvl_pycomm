@@ -3,14 +3,19 @@ import time
 
 import numpy as np
 
-import jvl_controller as jvl
+
 from pycomm3 import DINT
 
 import tkinter as tk
 from tkinter import ttk
 from tkinter import font
 
-from config import read_assembly, requested_items, in_position, Convert
+import config
+
+import jvl_controller as jvl
+
+
+# from config import read_assembly, requested_items, in_position, Convert
 
 
 def get_current_time():
@@ -27,6 +32,8 @@ def on_passive_mode_button():
 
 def on_homing_button():
     jvl_drive.set_operating_mode(12)
+    app.after_idle(wait_for_mode_0)
+    print("end of on_homing_button")
 
 
 def on_velocity_mode_button():
@@ -34,8 +41,9 @@ def on_velocity_mode_button():
     app.after(100)
     jvl_drive.set_operating_mode(1)
 
+
 def step(count=0):
-    if in_position:
+    if config.in_position:
         # jvl_drive.set_operating_mode(0)
         print("Count is ", count)
         print("Reached position")
@@ -44,11 +52,40 @@ def step(count=0):
         count += 1
         app.after(500, step(count + 1))
 
+
 def on_move_down_button():
     print("Move down!!")
     jvl_drive.move_down()
-    # app.after(2000, step())
+    # app.update()
+    app.after_idle(wait_for_in_position)
     print("end of on_move_down_button")
+
+
+def on_retract_probe_button():
+    print("retract probe")
+    jvl_drive.retract_probe()
+    app.after_idle(wait_for_in_position)
+    print("end of on_retract_probe_button")
+
+
+def wait_for_in_position():
+    config.read_assembly = jvl_drive.read_assembly_object()
+    config.in_position = config.read_assembly['register 35'][4]
+    if config.in_position:
+        print("In position?????")
+        jvl_drive.set_operating_mode(0)
+        return
+    app.after(100, wait_for_in_position)
+
+
+def wait_for_mode_0():
+    app.after(100)
+    config.read_assembly = jvl_drive.read_assembly_object()
+    in_mode_0 = config.read_assembly['operating mode']
+    if in_mode_0 == 0:
+        print("In mode zero!!")
+        return
+    app.after(100, wait_for_mode_0)
 
 
 class LabelsFrame(ttk.Frame):
@@ -161,17 +198,24 @@ class ActionsFrame(ttk.Frame):
         self.move_down_button = ttk.Button(self, text="Move down", command=on_move_down_button)
         self.move_down_button.grid(row=30, column=0)
 
+        self.retract_probe_button = ttk.Button(self, text="Retract probe",
+                                               command=on_retract_probe_button)
+        self.retract_probe_button.grid(row=31, column=0)
+
     def on_position_request_button(self):
         position_request = float(self.position_request_text.get())
         print(position_request)
-        jvl_drive.set_motor_register(3,
-                                     request_data=DINT.encode(int(position_request * Convert.CM2COUNT.value)))
+        jvl_drive.set_motor_register(
+            3,
+            request_data=DINT.encode(int(position_request * config.Convert.CM2COUNT.value)))
 
     def on_velocity_request_button(self):
         velocity_request = float(self.velocity_request_text.get())
         print(velocity_request)
-        jvl_drive.set_motor_register(5,
-                                     request_data=DINT.encode(int(velocity_request * Convert.CMSEC2VELOCITY.value)))
+        jvl_drive.set_motor_register(
+            5,
+            request_data=DINT.encode(
+                int(velocity_request * config.Convert.CMSEC2VELOCITY.value)))
 
 
 class Application(tk.Tk):
@@ -205,6 +249,8 @@ class Application(tk.Tk):
         self.actions_frame = ActionsFrame(self, padding="20 20 20 20")
         self.actions_frame.grid(row=0, column=0, sticky=tk.NSEW)
 
+        self.tk_in_position = tk.BooleanVar()
+
         # ************
         # update labels
         # ************
@@ -214,31 +260,34 @@ class Application(tk.Tk):
         now = datetime.datetime.now().time()
         self.labels_frame.time_label_text.set(time.strftime("%H:%M:%S"))
 
-        read_assembly = jvl_drive.read_assembly_object()
+        config.read_assembly = jvl_drive.read_assembly_object()
         # the enable switch option
         # need a way to reset and return to action or leave it.
         # if not read_assembly['digital inputs'][0]:
         #     jvl_drive.set_operating_mode(0)
-        globals()['in_position'] = read_assembly['register 35'][4]
-        self.labels_frame.operating_mode_text.set(f"{read_assembly['operating mode']}")
-        self.labels_frame.position_text.set(f"{read_assembly['position'] * Convert.COUNT2CM.value:0.1f} cm")
+        config.in_position = config.read_assembly['register 35'][4]
+        self.tk_in_position.set(config.in_position)
+        self.labels_frame.operating_mode_text.set(f"{config.read_assembly['operating mode']}")
+        self.labels_frame.position_text.set(
+            f"{config.read_assembly['position'] * config.Convert.COUNT2CM.value:0.1f} cm")
 
-        self.labels_frame.velocity_text.set(f"{read_assembly['velocity'] * Convert.VELOCITY2CMSEC.value:0.2f} cm/s")
-        self.labels_frame.digital_io_text.set(f"\n{int(read_assembly['digital inputs'][0])}\n"
-                                              f"{int(read_assembly['digital inputs'][1])}\n"
-                                              f"{int(read_assembly['digital inputs'][2])}\n")
-        self.labels_frame.error_register_text.set(f"{int(read_assembly['register 35'][4])}\n"                                                  
-                                                  f"{int(read_assembly['register 35'][24])}\n")
-        globals()['requested_items'] = jvl_drive.read_requested_items()
-        self.labels_frame.requested_items_text.set(f"\n{requested_items[0] * Convert.COUNT2CM.value:0.1f} cm\n"
-                                                   f"{requested_items[1] * Convert.VELOCITY2CMSEC.value:0.2f} cm/s\n"
-                                                   f"{requested_items[2] * Convert.TORQUE2PCT.value:0.1f} %\n")
+        self.labels_frame.velocity_text.set(
+            f"{config.read_assembly['velocity'] * config.Convert.VELOCITY2CMSEC.value:0.2f} cm/s")
+        self.labels_frame.digital_io_text.set(f"\n{int(config.read_assembly['digital inputs'][0])}\n"
+                                              f"{int(config.read_assembly['digital inputs'][1])}\n"
+                                              f"{int(config.read_assembly['digital inputs'][2])}\n")
+        self.labels_frame.error_register_text.set(f"{int(config.read_assembly['register 35'][4])}\n"
+                                                  f"{int(config.read_assembly['register 35'][24])}\n")
+        config.requested_items = jvl_drive.read_requested_items()
+        self.labels_frame.requested_items_text.set(
+            f"\n{config.requested_items[0] * config.Convert.COUNT2CM.value:0.1f} cm\n"
+            f"{config.requested_items[1] * config.Convert.VELOCITY2CMSEC.value:0.2f} cm/s\n"
+            f"{config.requested_items[2] * config.Convert.TORQUE2PCT.value:0.1f} %\n")
         if poll:
             self.after(100, self.update_labels)
 
 
 if __name__ == '__main__':
-
     ip_address = '192.168.0.28'
 
     jvl_drive = jvl.JVLDrive(ip_address)
@@ -249,12 +298,3 @@ if __name__ == '__main__':
 
     app = Application()
     app.mainloop()
-
-
-
-
-
-
-
-
-
