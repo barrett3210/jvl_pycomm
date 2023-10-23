@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import time
 
 from io import BytesIO
 import bitstring
@@ -19,6 +20,9 @@ from pycomm3 import BYTE
 from pycomm3 import UINT
 
 from pycomm3.cip import n_bytes
+
+from config import read_assembly, requested_items, in_position, Convert
+from config import move_down_distance
 
 
 def discover_drive_addresses():
@@ -53,6 +57,11 @@ class WriteAssembly(Struct(
     DINT('write word 5')
 )):
     ...
+
+
+def get_current_stored_position_cm():
+    current_position_cm = read_assembly['position'] * Convert.COUNT2CM.value
+    return current_position_cm
 
 
 class JVLDrive:
@@ -188,6 +197,21 @@ class JVLDrive:
         requested_velocity = self.read_motor_register(5, data_type=DINT)
         requested_torque = self.read_motor_register(7, data_type=DINT)
         return (requested_position, requested_velocity, requested_torque)
+
+    def set_requested_position(self, requested_position_cm):
+        requested_position_counts = int(requested_position_cm * Convert.CM2COUNT.value)
+        self.set_motor_register(3, request_data=DINT.encode(requested_position_counts))
+
+    def move_down(self):
+        print("jvl drive move down")
+        current_position_cm = get_current_stored_position_cm()
+        print("Current position ", current_position_cm)
+        requested_position_cm = current_position_cm + move_down_distance
+        print("Requested position ", requested_position_cm)
+        self.set_requested_position(requested_position_cm)
+        time.sleep(0.1)
+        self.set_operating_mode(2)
+        print("finished jvl drive move down")
 
 
 

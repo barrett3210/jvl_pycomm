@@ -1,30 +1,16 @@
 import datetime
 import time
-from enum import Enum
 
 import numpy as np
 
 import jvl_controller as jvl
-from pycomm3 import DWORD, UINT, UDINT, DINT
+from pycomm3 import DINT
 
 import tkinter as tk
 from tkinter import ttk
 from tkinter import font
 
-
-# # Multiply the first by value to get the second
-# CONVERSIONS = {
-#     'counts to cm': 0.0000206809,
-#     'cm to counts': 48353.795,
-# }
-
-class Convert(Enum):
-    COUNT2CM = 0.0000206809
-    CM2COUNT = 48353.795
-    CMSEC2VELOCITY = 1005.7574
-    VELOCITY2CMSEC = 0.00099428
-    PCT2TORQUE = 3.41
-    TORQUE2PCT = 0.293255132
+from config import read_assembly, requested_items, in_position, Convert
 
 
 def get_current_time():
@@ -48,34 +34,21 @@ def on_velocity_mode_button():
     app.after(100)
     jvl_drive.set_operating_mode(1)
 
+def step(count=0):
+    if in_position:
+        # jvl_drive.set_operating_mode(0)
+        print("Count is ", count)
+        print("Reached position")
+        return
+    else:
+        count += 1
+        app.after(500, step(count + 1))
 
-def on_change_velocity_direction():
-    current_desired_velocity = jvl_drive.read_motor_register(5,
-                                                             data_type=DINT)
-    print(f"Current desired velocity:  {current_desired_velocity}")
-    new_desired_velocity = DINT.encode(-1 * current_desired_velocity)
-    print(f"New desired velocity: {new_desired_velocity}")
-    jvl_drive.set_motor_register(5, request_data=new_desired_velocity)
-    print("set motor register 5")
-
-
-def on_print_error_bits_button():
-    read_assembly = jvl_drive.read_assembly_object()
-    print("Error register bits: ")
-    print(read_assembly['register 35'])
-    print()
-
-
-def on_move_to_position_try_button():
-    print("Move to position")
-    print("need to update this command")
-    # position = 900
-    # jvl_drive.set_requested_position_register(position)
-
-
-def on_command_register_button():
-    print("activate command register")
-    print("need to update this command")
+def on_move_down_button():
+    print("Move down!!")
+    jvl_drive.move_down()
+    # app.after(2000, step())
+    print("end of on_move_down_button")
 
 
 class LabelsFrame(ttk.Frame):
@@ -137,6 +110,12 @@ class ActionsFrame(ttk.Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # ***** Buttons *****
+
+        self.passive_mode_button = ttk.Button(self, text="passive mode",
+                                              command=on_passive_mode_button)
+        self.passive_mode_button.grid(row=8, column=0)
+
         self.velocity_mode_button = ttk.Button(self, text="velocity mode",
                                                command=on_velocity_mode_button)
         self.velocity_mode_button.grid(row=9, column=0)
@@ -145,35 +124,14 @@ class ActionsFrame(ttk.Frame):
                                                command=on_position_mode_button)
         self.position_mode_button.grid(row=10, column=0)
 
-        self.passive_mode_button = ttk.Button(self, text="passive mode",
-                                              command=on_passive_mode_button)
-        self.passive_mode_button.grid(row=11, column=0)
-
-        self.print_error_bits_button = ttk.Button(self,
-                                                  text="Print error bits",
-                                                  command=on_print_error_bits_button)
-        self.print_error_bits_button.grid(row=12, column=0)
-
         self.homing_button = ttk.Button(self,
                                         text="Homing",
                                         command=on_homing_button)
         self.homing_button.grid(row=13, column=0)
 
-        self.move_to_position_try_button = ttk.Button(self,
-                                                      text="Move",
-                                                      command=on_move_to_position_try_button)
-        self.move_to_position_try_button.grid(row=14, column=0)
+        # ***** Buttons end *****
 
-        self.command_register_button = ttk.Button(self,
-                                                  text="Command Register",
-                                                  command=on_command_register_button)
-        self.command_register_button.grid(row=15, column=0)
-
-        self.change_velocity_direction_button = ttk.Button(self,
-                                                           text="Change direction",
-                                                           command=on_change_velocity_direction)
-        self.change_velocity_direction_button.grid(row=16, column=0)
-
+        # ***** Entries *****
         self.position_request_intro = ttk.Label(self, text="Request position (cm): ")
         self.position_request_intro.grid(row=17, column=0)
         self.position_request_text = tk.StringVar()
@@ -196,6 +154,13 @@ class ActionsFrame(ttk.Frame):
                                                   command=self.on_velocity_request_button)
         self.velocity_request_button.grid(row=18, column=2)
 
+        # ***** Entries end *******
+
+        # ***** Special buttons *****
+
+        self.move_down_button = ttk.Button(self, text="Move down", command=on_move_down_button)
+        self.move_down_button.grid(row=30, column=0)
+
     def on_position_request_button(self):
         position_request = float(self.position_request_text.get())
         print(position_request)
@@ -207,8 +172,6 @@ class ActionsFrame(ttk.Frame):
         print(velocity_request)
         jvl_drive.set_motor_register(5,
                                      request_data=DINT.encode(int(velocity_request * Convert.CMSEC2VELOCITY.value)))
-
-
 
 
 class Application(tk.Tk):
@@ -235,15 +198,12 @@ class Application(tk.Tk):
         self.default_font.configure(size=11)
         self.menu_font = font.nametofont("TkMenuFont")
         self.menu_font.configure(size=11, weight=font.BOLD)
-        print('Layout ', self.style.layout('My.TLabel'))
-        print('')
 
         self.labels_frame = LabelsFrame(self, padding="20 20 20 20")
-        self.labels_frame.grid(row=0, column=1, sticky=(tk.N, tk.W, tk.S, tk.E))
+        self.labels_frame.grid(row=0, column=1, sticky=tk.NSEW)
 
         self.actions_frame = ActionsFrame(self, padding="20 20 20 20")
-        self.actions_frame.grid(row=0, column=0, sticky=(tk.N, tk.W, tk.S, tk.E))
-
+        self.actions_frame.grid(row=0, column=0, sticky=tk.NSEW)
 
         # ************
         # update labels
@@ -255,6 +215,11 @@ class Application(tk.Tk):
         self.labels_frame.time_label_text.set(time.strftime("%H:%M:%S"))
 
         read_assembly = jvl_drive.read_assembly_object()
+        # the enable switch option
+        # need a way to reset and return to action or leave it.
+        # if not read_assembly['digital inputs'][0]:
+        #     jvl_drive.set_operating_mode(0)
+        globals()['in_position'] = read_assembly['register 35'][4]
         self.labels_frame.operating_mode_text.set(f"{read_assembly['operating mode']}")
         self.labels_frame.position_text.set(f"{read_assembly['position'] * Convert.COUNT2CM.value:0.1f} cm")
 
@@ -264,12 +229,13 @@ class Application(tk.Tk):
                                               f"{int(read_assembly['digital inputs'][2])}\n")
         self.labels_frame.error_register_text.set(f"{int(read_assembly['register 35'][4])}\n"                                                  
                                                   f"{int(read_assembly['register 35'][24])}\n")
-        requested_items = jvl_drive.read_requested_items()
+        globals()['requested_items'] = jvl_drive.read_requested_items()
         self.labels_frame.requested_items_text.set(f"\n{requested_items[0] * Convert.COUNT2CM.value:0.1f} cm\n"
                                                    f"{requested_items[1] * Convert.VELOCITY2CMSEC.value:0.2f} cm/s\n"
                                                    f"{requested_items[2] * Convert.TORQUE2PCT.value:0.1f} %\n")
         if poll:
             self.after(100, self.update_labels)
+
 
 if __name__ == '__main__':
 
