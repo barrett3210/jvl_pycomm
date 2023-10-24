@@ -11,6 +11,7 @@ from tkinter import ttk
 from tkinter import font
 
 import config
+import spectrometer_action
 
 import jvl_controller as jvl
 
@@ -60,6 +61,80 @@ def on_retract_probe_button():
     print("end of on_retract_probe_button")
 
 
+def on_insertion_movement_button():
+    print("Insertion movement button")
+    start_insertion()
+
+
+def start_insertion():
+    config.insertion_interrupt = False
+    config.my_in_position = False
+    config.insertion_start_position = config.read_assembly['position'] * config.Convert.COUNT2CM.value
+    count = 0
+    begin_insertion_step(count)
+
+
+def begin_insertion_step(count):
+    if config.insertion_interrupt:
+        finish_insertion()
+        return
+    print(f"step {count} begins")
+    config.spectra_done = False
+    config.my_in_position = False
+    stop = config.insertion_stops[count] + config.insertion_start_position
+    jvl_drive.move_to_insertion_stop(stop)
+    app.after_idle(wait_for_in_position)
+    app.after_idle(lambda: check_for_in_position(count))
+
+
+def check_for_in_position(count):
+    if config.insertion_interrupt:
+        finish_insertion()
+    elif config.my_in_position:
+        print(f"In position for count {count}")
+        take_spectra(count)
+    else:
+        app.after_idle(lambda: check_for_in_position(count))
+
+
+def take_spectra(count):
+    spectrometer_action.simulate_spectrometer_action()
+    check_for_spectra_done(count)
+
+
+def check_for_spectra_done(count):
+    if config.insertion_interrupt:
+        finish_insertion()
+    elif config.spectra_done:
+        print(f"insertion step {count} ends")
+        count += 1
+        if count < len(config.insertion_stops):
+            begin_insertion_step(count)
+        else:
+            finish_insertion()
+    else:
+        app.after_idle(lambda: check_for_spectra_done(count))
+
+
+def finish_insertion():
+    print("finish insertion")
+
+
+def on_interrupt_insertion_button():
+    print("interrupt insertion")
+    config.insertion_interrupt = True
+
+
+def do_insertion_step_middle(i, stop):
+    while not config.my_in_position:
+        app.after(1, wait_for_in_position)
+    app.after_idle(get_spectrometer_readings)
+
+
+def get_spectrometer_readings():
+    spectrum = spectrometer_action.simulate_spectrometer_action()
+    print(spectrum[0], spectrum[1])
+
 def wait_for_in_position():
     config.read_assembly = jvl_drive.read_assembly_object()
     config.in_position = config.read_assembly['register 35'][4]
@@ -67,7 +142,7 @@ def wait_for_in_position():
         print("In position?????")
         jvl_drive.set_operating_mode(0)
         config.my_in_position = True
-        return
+        return True
     app.after(200, wait_for_in_position)
 
 
@@ -79,6 +154,7 @@ def wait_for_mode_0():
         print("In mode zero!!")
         config.homed = True
         config.my_in_position = True
+        config.enable_drive = False
         return
     app.after(200, wait_for_mode_0)
 
@@ -146,10 +222,17 @@ class LabelsFrame(ttk.Frame):
 
         self.my_position_text = tk.StringVar()
         self.my_position_text.set("Blah")
-        my_position_intro = ttk.Label(self, text="Reached Position")
+        my_position_intro = ttk.Label(self, text="Reached position")
         my_position_intro.grid(row=9, column=0, sticky=tk.E, padx=10)
         my_position_label = ttk.Label(self, textvariable=self.my_position_text)
         my_position_label.grid(row=9, column=1, sticky=tk.EW, padx=10)
+
+        self.enable_drive_text = tk.StringVar()
+        self.enable_drive_text.set("Blah")
+        enable_drive_intro = ttk.Label(self, text="Enable drive")
+        enable_drive_intro.grid(row=10, column=0, sticky=tk.E, padx=10)
+        enable_drive_label = ttk.Label(self, textvariable=self.enable_drive_text)
+        enable_drive_label.grid(row=10, column=1, sticky=tk.EW, padx=10)
 
 
 class ActionsFrame(ttk.Frame):
@@ -211,6 +294,14 @@ class ActionsFrame(ttk.Frame):
                                                command=on_retract_probe_button)
         self.retract_probe_button.grid(row=31, column=0)
 
+        self.insertion_movement_button = ttk.Button(self, text="Insertion movement",
+                                                    command=on_insertion_movement_button)
+        self.insertion_movement_button.grid(row=32, column=0)
+
+        self.interrupt_insertion_button = ttk.Button(self, text="Interrupt insertion",
+                                                     command=on_interrupt_insertion_button)
+        self.interrupt_insertion_button.grid(row=33, column=0)
+
     def on_position_request_button(self):
         position_request = float(self.position_request_text.get())
         print(position_request)
@@ -270,6 +361,7 @@ class Application(tk.Tk):
         self.labels_frame.time_label_text.set(time.strftime("%H:%M:%S"))
 
         config.read_assembly = jvl_drive.read_assembly_object()
+        config.enable_drive = config.read_assembly['digital inputs'][0]
         # the enable switch option
         # need a way to reset and return to action or leave it.
         # if not read_assembly['digital inputs'][0]:
@@ -297,6 +389,9 @@ class Application(tk.Tk):
         )
         self.labels_frame.my_position_text.set(
             config.my_in_position
+        )
+        self.labels_frame.enable_drive_text.set(
+            config.enable_drive
         )
         if poll:
             self.after(10, self.update_labels)

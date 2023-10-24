@@ -145,6 +145,10 @@ class JVLDrive:
     def set_operating_mode(self, value):
         write_assembly = [value, 0, 0, 0, 0]
         self.issue_cyclic_command(WriteAssembly.encode(write_assembly))
+        if value == 0:
+            config.enable_drive = False
+        else:
+            config.enable_drive = True
 
     def read_assembly_object_portion(self, portion):
         with CIPDriver(self.drive_path) as drive:
@@ -219,7 +223,7 @@ class JVLDrive:
         requested_position_cm = current_position_cm + config.move_down_distance
         print("Requested position ", requested_position_cm)
         self.set_requested_position(requested_position_cm)
-        time.sleep(0.01)
+        time.sleep(0.005)
         self.set_operating_mode(2)
         print("finished jvl drive move down")
 
@@ -228,6 +232,15 @@ class JVLDrive:
         requested_position_cm = config.min_position_counts * config.Convert.COUNT2CM.value
         print(f"Request to move to position {requested_position_cm} cm")
         self.set_requested_position(requested_position_cm)
-        time.sleep(0.01)
+        time.sleep(0.005)
         self.set_operating_mode(2)
         print("finished jvl drive retract probe")
+
+    def move_to_insertion_stop(self, stop):
+        # print("jvl drive move to stop")
+        requested_position_cm = stop
+        print("Requested position ", requested_position_cm)
+        self.set_requested_position(requested_position_cm)
+        time.sleep(0.005)
+        self.set_operating_mode(2)
+        # print("finished jvl drive move to next stop")
