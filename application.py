@@ -125,16 +125,6 @@ def on_interrupt_insertion_button():
     config.insertion_interrupt = True
 
 
-def do_insertion_step_middle(i, stop):
-    while not config.my_in_position:
-        app.after(1, wait_for_in_position)
-    app.after_idle(get_spectrometer_readings)
-
-
-def get_spectrometer_readings():
-    spectrum = spectrometer_action.simulate_spectrometer_action()
-    print(spectrum[0], spectrum[1])
-
 def wait_for_in_position():
     config.read_assembly = jvl_drive.read_assembly_object()
     config.in_position = config.read_assembly['register 35'][4]
@@ -364,8 +354,9 @@ class Application(tk.Tk):
         config.enable_drive = config.read_assembly['digital inputs'][0]
         # the enable switch option
         # need a way to reset and return to action or leave it.
-        # if not read_assembly['digital inputs'][0]:
-        #     jvl_drive.set_operating_mode(0)
+        if not config.read_assembly['digital inputs'][0]:
+            jvl_drive.set_operating_mode(0)
+
         config.in_position = config.read_assembly['register 35'][4]
         self.tk_in_position.set(config.in_position)
         self.labels_frame.operating_mode_text.set(f"{config.read_assembly['operating mode']}")
