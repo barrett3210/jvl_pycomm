@@ -3,6 +3,8 @@ from enum import Enum
 read_assembly = {}
 requested_items = None
 in_position = False
+homed = False
+my_in_position = False
 
 move_down_distance = 2.5
 

@@ -31,6 +31,8 @@ def on_passive_mode_button():
 
 
 def on_homing_button():
+    config.homed = False
+    config.my_in_position = False
     jvl_drive.set_operating_mode(12)
     app.after_idle(wait_for_mode_0)
     print("end of on_homing_button")
@@ -42,27 +44,17 @@ def on_velocity_mode_button():
     jvl_drive.set_operating_mode(1)
 
 
-def step(count=0):
-    if config.in_position:
-        # jvl_drive.set_operating_mode(0)
-        print("Count is ", count)
-        print("Reached position")
-        return
-    else:
-        count += 1
-        app.after(500, step(count + 1))
-
-
 def on_move_down_button():
-    print("Move down!!")
+    print("Pushed moved down button!")
+    config.my_in_position = False
     jvl_drive.move_down()
-    # app.update()
     app.after_idle(wait_for_in_position)
     print("end of on_move_down_button")
 
 
 def on_retract_probe_button():
     print("retract probe")
+    config.my_in_position = False
     jvl_drive.retract_probe()
     app.after_idle(wait_for_in_position)
     print("end of on_retract_probe_button")
@@ -74,18 +66,21 @@ def wait_for_in_position():
     if config.in_position:
         print("In position?????")
         jvl_drive.set_operating_mode(0)
+        config.my_in_position = True
         return
-    app.after(100, wait_for_in_position)
+    app.after(200, wait_for_in_position)
 
 
 def wait_for_mode_0():
-    app.after(100)
+    app.after(20)
     config.read_assembly = jvl_drive.read_assembly_object()
     in_mode_0 = config.read_assembly['operating mode']
     if in_mode_0 == 0:
         print("In mode zero!!")
+        config.homed = True
+        config.my_in_position = True
         return
-    app.after(100, wait_for_mode_0)
+    app.after(200, wait_for_mode_0)
 
 
 class LabelsFrame(ttk.Frame):
@@ -141,6 +136,20 @@ class LabelsFrame(ttk.Frame):
         requested_items_intro.grid(row=7, column=0, sticky=tk.E, padx=10)
         requested_items_label = ttk.Label(self, textvariable=self.requested_items_text)
         requested_items_label.grid(row=7, column=1, sticky=tk.EW, padx=10)
+
+        self.homed_text = tk.StringVar()
+        self.homed_text.set("Blah")
+        homed_label_intro = ttk.Label(self, text="Homed")
+        homed_label_intro.grid(row=8, column=0, sticky=tk.E, padx=10)
+        homed_label = ttk.Label(self, textvariable=self.homed_text)
+        homed_label.grid(row=8, column=1, sticky=tk.EW, padx=10)
+
+        self.my_position_text = tk.StringVar()
+        self.my_position_text.set("Blah")
+        my_position_intro = ttk.Label(self, text="Reached Position")
+        my_position_intro.grid(row=9, column=0, sticky=tk.E, padx=10)
+        my_position_label = ttk.Label(self, textvariable=self.my_position_text)
+        my_position_label.grid(row=9, column=1, sticky=tk.EW, padx=10)
 
 
 class ActionsFrame(ttk.Frame):
@@ -283,8 +292,14 @@ class Application(tk.Tk):
             f"\n{config.requested_items[0] * config.Convert.COUNT2CM.value:0.1f} cm\n"
             f"{config.requested_items[1] * config.Convert.VELOCITY2CMSEC.value:0.2f} cm/s\n"
             f"{config.requested_items[2] * config.Convert.TORQUE2PCT.value:0.1f} %\n")
+        self.labels_frame.homed_text.set(
+            config.homed
+        )
+        self.labels_frame.my_position_text.set(
+            config.my_in_position
+        )
         if poll:
-            self.after(100, self.update_labels)
+            self.after(10, self.update_labels)
 
 
 if __name__ == '__main__':
