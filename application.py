@@ -12,6 +12,7 @@ from tkinter import font
 
 import config
 import spectrometer_action
+import dialogs
 
 import jvl_controller as jvl
 
@@ -61,6 +62,29 @@ def on_retract_probe_button():
     print("end of on_retract_probe_button")
 
 
+def on_invoke_reset_drive_dialog():
+    on_disable_drive()
+
+
+def on_disable_drive():
+    jvl_drive.set_operating_mode(0)
+    dialogs.UnsetDriveDisabled(app)
+    if config.options_text == "1":
+        print("leaving drive disabled")
+    elif config.options_text == "2":
+        if config.insertion_in_progress:
+            print("resuming insertion")
+            begin_insertion_step(config.insertion_step_count)
+        else:
+            print(f"setting operating mode to {config.requested_mode}")
+            jvl_drive.set_operating_mode(config.requested_mode)
+    elif config.options_text == "3":
+        print(f"interrupting insertion")
+        on_interrupt_insertion_button()
+    else:
+        print("invalid option")
+
+
 def on_insertion_movement_button():
     print("Insertion movement button")
     start_insertion()
@@ -69,9 +93,10 @@ def on_insertion_movement_button():
 def start_insertion():
     config.insertion_interrupt = False
     config.my_in_position = False
+    config.insertion_in_progress = True
     config.insertion_start_position = config.read_assembly['position'] * config.Convert.COUNT2CM.value
-    count = 0
-    begin_insertion_step(count)
+    config.insertion_step_count = 0
+    app.after_idle(lambda: begin_insertion_step(config.insertion_step_count))
 
 
 def begin_insertion_step(count):
@@ -118,11 +143,13 @@ def check_for_spectra_done(count):
 
 def finish_insertion():
     print("finish insertion")
+    config.insertion_in_progress = False
 
 
 def on_interrupt_insertion_button():
     print("interrupt insertion")
     config.insertion_interrupt = True
+    config.insertion_in_progress = False
 
 
 def wait_for_in_position():
@@ -133,7 +160,7 @@ def wait_for_in_position():
         jvl_drive.set_operating_mode(0)
         config.my_in_position = True
         return True
-    app.after(200, wait_for_in_position)
+    config.callback = app.after(200, wait_for_in_position)
 
 
 def wait_for_mode_0():
@@ -292,6 +319,10 @@ class ActionsFrame(ttk.Frame):
                                                      command=on_interrupt_insertion_button)
         self.interrupt_insertion_button.grid(row=33, column=0)
 
+        self.invoke_reset_drive_dialog = ttk.Button(self, text="reset drive",
+                                                    command=on_invoke_reset_drive_dialog)
+        self.invoke_reset_drive_dialog.grid(row=34, column=0)
+
     def on_position_request_button(self):
         position_request = float(self.position_request_text.get())
         print(position_request)
@@ -339,8 +370,6 @@ class Application(tk.Tk):
         self.actions_frame = ActionsFrame(self, padding="20 20 20 20")
         self.actions_frame.grid(row=0, column=0, sticky=tk.NSEW)
 
-        self.tk_in_position = tk.BooleanVar()
-
         # ************
         # update labels
         # ************
@@ -354,11 +383,15 @@ class Application(tk.Tk):
         config.enable_drive = config.read_assembly['digital inputs'][0]
         # the enable switch option
         # need a way to reset and return to action or leave it.
+
         if not config.read_assembly['digital inputs'][0]:
-            jvl_drive.set_operating_mode(0)
+            if config.read_assembly['operating mode'] != 0:
+                jvl_drive.set_operating_mode(0)
+                print("setting operating mode to zero")
+
 
         config.in_position = config.read_assembly['register 35'][4]
-        self.tk_in_position.set(config.in_position)
+
         self.labels_frame.operating_mode_text.set(f"{config.read_assembly['operating mode']}")
         self.labels_frame.position_text.set(
             f"{config.read_assembly['position'] * config.Convert.COUNT2CM.value:0.1f} cm")

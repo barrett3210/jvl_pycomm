@@ -149,6 +149,8 @@ class JVLDrive:
             config.enable_drive = False
         else:
             config.enable_drive = True
+            config.requested_mode = value
+        # print(f"value {value}, config.requested_mode {config.requested_mode}")
 
     def read_assembly_object_portion(self, portion):
         with CIPDriver(self.drive_path) as drive:
