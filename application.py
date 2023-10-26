@@ -3,7 +3,6 @@ import time
 
 import numpy as np
 
-
 from pycomm3 import DINT
 
 import tkinter as tk
@@ -12,8 +11,6 @@ from tkinter import font
 
 import config
 import spectrometer_action
-import dialogs
-
 import jvl_controller as jvl
 
 
@@ -31,11 +28,6 @@ def on_passive_mode_button():
 
 def on_homing_button():
     app.movement = HomingMovement()
-    # config.homed = False
-    # config.my_in_position = False
-    # jvl_drive.set_operating_mode(12)
-    # app.after_idle(wait_for_mode_0)
-    # print("end of on_homing_button")
 
 
 def on_velocity_mode_button():
@@ -54,61 +46,17 @@ def on_retract_probe_button():
     app.movement = AbsoluteMovement(position_cm=config.min_position_cm)
 
 
-# def on_invoke_reset_drive_dialog():
-#     on_disable_drive()
-
-
 def on_disable_drive():
     jvl_drive.set_operating_mode(0)
     if app.insertion:
         app.insertion.interrupt = True
     elif app.movement:
         app.movement.interrupt = True
-    # dialogs.UnsetDriveDisabled(app)
-    # if config.options_text == "1":
-    #     print("leaving drive disabled")
-    #
-    # elif config.options_text == "2":
-    #     if config.insertion_in_progress:
-    #         print("resuming insertion")
-    #         # begin_insertion_step(config.insertion_step_count)
-    #     else:
-    #         print(f"setting operating mode to {config.requested_mode}")
-    #         jvl_drive.set_operating_mode(config.requested_mode)
-    # elif config.options_text == "3":
-    #     print(f"interrupting insertion")
-    #     on_interrupt_insertion_button()
-    # else:
-    #     print("invalid option")
 
 
 def on_insertion_movement_button():
     print("Insertion movement button")
     app.insertion = InsertionMovement()
-
-
-# def on_interrupt_insertion_button():
-#     print("interrupt insertion")
-#     # config.insertion_interrupt = True
-#     # config.insertion_in_progress = False
-#     app.insertion.interrupt = True
-#     app.insertion.in_progress = False
-
-# def on_interrupt_movement_button():
-#     app.movement.interrupt = True
-
-
-# def wait_for_mode_0():
-#     app.after(20)
-#     config.read_assembly = jvl_drive.read_assembly_object()
-#     in_mode_0 = config.read_assembly['operating mode']
-#     if in_mode_0 == 0:
-#         print("In mode zero!!")
-#         config.homed = True
-#         config.my_in_position = True
-#         config.enable_drive = False
-#         return
-#     app.after(200, wait_for_mode_0)
 
 
 class Movement:
@@ -380,17 +328,9 @@ class ActionsFrame(ttk.Frame):
                                                     command=on_insertion_movement_button)
         self.insertion_movement_button.grid(row=32, column=0)
 
-        # self.interrupt_insertion_button = ttk.Button(self, text="Interrupt insertion",
-        #                                              command=on_interrupt_insertion_button)
-        # self.interrupt_insertion_button.grid(row=33, column=0)
-
         self.invoke_reset_drive_dialog = ttk.Button(self, text="disable drive",
                                                     command=on_disable_drive)
         self.invoke_reset_drive_dialog.grid(row=34, column=0)
-
-        # self.interrupt_movement_button = ttk.Button(self, text="Interrupt movement",
-        #                                             command=on_interrupt_movement_button)
-        # self.interrupt_movement_button.grid(row=35, column=0)
 
     def on_position_request_button(self):
         position_request = float(self.position_request_text.get())

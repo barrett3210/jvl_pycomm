@@ -1,30 +1,14 @@
-from dataclasses import dataclass
 import time
-
 from io import BytesIO
-import bitstring
-
-from typing import Any, Type, Dict, Tuple, Union
+from typing import Any, Dict
 
 from pycomm3 import CIPDriver
 from pycomm3 import Services
 from pycomm3 import Struct
-
-from pycomm3 import UDINT
 from pycomm3 import DWORD
-from pycomm3 import SHORT_STRING
-from pycomm3 import STRING
 from pycomm3 import DINT
-from pycomm3 import BYTE
-from pycomm3 import UINT
-
-from pycomm3.cip import n_bytes
 
 import config
-
-
-# from config import read_assembly, requested_items, in_position, Convert
-# from config import move_down_distance
 
 
 def discover_drive_addresses():
@@ -238,10 +222,8 @@ class JVLDrive:
         print("finished jvl drive retract probe")
 
     def move_to_insertion_stop(self, stop):
-        # print("jvl drive move to stop")
         requested_position_cm = stop
         print("Requested position ", requested_position_cm)
         self.set_requested_position(requested_position_cm)
         time.sleep(0.005)
         self.set_operating_mode(2)
-        # print("finished jvl drive move to next stop")
