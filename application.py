@@ -45,18 +45,13 @@ def on_velocity_mode_button():
 
 def on_move_down_button():
     print("Pushed moved down button!")
-    config.my_in_position = False
-    jvl_drive.move_down()
-    app.after_idle(wait_for_in_position)
-    print("end of on_move_down_button")
+    app.movement = RelativeMovement(config.move_down_distance)
 
 
 def on_retract_probe_button():
     print("retract probe")
-    config.my_in_position = False
-    jvl_drive.retract_probe()
-    app.after_idle(wait_for_in_position)
-    print("end of on_retract_probe_button")
+    app.movement = AbsoluteMovement(config.min_position_cm)
+
 
 
 def on_invoke_reset_drive_dialog():
@@ -84,13 +79,15 @@ def on_disable_drive():
 
 def on_insertion_movement_button():
     print("Insertion movement button")
-    insertion_movement = InsertionMovement()
+    app.insertion = InsertionMovement()
 
 
 def on_interrupt_insertion_button():
     print("interrupt insertion")
-    config.insertion_interrupt = True
-    config.insertion_in_progress = False
+    # config.insertion_interrupt = True
+    # config.insertion_in_progress = False
+    app.insertion.interrupt = True
+    app.insertion.in_progress = False
 
 
 def wait_for_in_position():
@@ -117,12 +114,42 @@ def wait_for_mode_0():
     app.after(200, wait_for_mode_0)
 
 
+class AbsoluteMovement:
+    def __init__(self, position_cm):
+        self.interrupt = False
+        self.in_progress = False
+        self.position_cm = position_cm
+        self.move()
+
+    def move(self):
+        config.my_in_position = False
+        jvl_drive.retract_probe(self.position_cm)
+        app.after_idle(wait_for_in_position)
+        print("end of on_retract_probe_button")
+
+
+class RelativeMovement:
+    def __init__(self, move_down_cm):
+        self.interrupt = False
+        self.in_progress = False
+        self.move_down_cm = move_down_cm  # negative values move up
+
+        self.move_down()
+
+    def move_down(self):
+        config.my_in_position = False
+        jvl_drive.move_down(self.move_down_cm)
+        app.after_idle(wait_for_in_position)
+
+
+
 class InsertionMovement:
     def __init__(self):
         self.interrupt = False
         self.in_progress = True
         self.start_position = config.read_assembly['position'] * config.Convert.COUNT2CM.value
         self.step_count = 0
+        self.spectra = []
         config.spectra_done = False
         config.my_in_position = False
         app.after_idle(self.begin_insertion_step)
@@ -149,13 +176,13 @@ class InsertionMovement:
             app.after_idle(self.check_for_in_position)
 
     def take_spectra(self):
-        spectrometer_action.simulate_spectrometer_action()
+        self.spectra.append(spectrometer_action.simulate_spectrometer_action())
         self.check_for_spectra_done()
 
     def check_for_spectra_done(self):
         if self.interrupt:
             self.finish_insertion()
-        elif config.spectra_done:
+        elif len(self.spectra) == self.step_count + 1:
             print(f"insertion step {self.step_count} ends")
             self.step_count += 1
             if self.step_count < len(config.insertion_stops):
@@ -167,6 +194,7 @@ class InsertionMovement:
 
     def finish_insertion(self):
         print("finish insertion")
+        print(self.spectra)
         self.in_progress = False
 
 
@@ -364,13 +392,17 @@ class Application(tk.Tk):
         self.actions_frame = ActionsFrame(self, padding="20 20 20 20")
         self.actions_frame.grid(row=0, column=0, sticky=tk.NSEW)
 
+        # keep track of the current insertion movement
+        self.insertion = None
+        self.movement = None
+
         # ************
         # update labels
         # ************
         self.update_labels()
 
         # poll for enable switch
-        self.poll_enable_switch()
+        # self.poll_enable_switch()
 
     def poll_enable_switch(self, poll=True):
         config.read_assembly = jvl_drive.read_assembly_object()

@@ -10,3 +10,4 @@ def simulate_spectrometer_action():
     position = f"{config.read_assembly['position'] * config.Convert.COUNT2CM.value:0.2f} cm"
     print("**Spectrum** ", now, position)
     config.spectra_done = True
+    return (position, now)

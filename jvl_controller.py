@@ -218,22 +218,21 @@ class JVLDrive:
         requested_position_counts = int(requested_position_cm * config.Convert.CM2COUNT.value)
         self.set_motor_register(3, request_data=DINT.encode(requested_position_counts))
 
-    def move_down(self):
+    def move_down(self, move_down_cm):
         print("jvl drive move down")
         current_position_cm = get_current_stored_position_cm()
         print("Current position ", current_position_cm)
-        requested_position_cm = current_position_cm + config.move_down_distance
+        requested_position_cm = current_position_cm + move_down_cm
         print("Requested position ", requested_position_cm)
         self.set_requested_position(requested_position_cm)
         time.sleep(0.005)
         self.set_operating_mode(2)
         print("finished jvl drive move down")
 
-    def retract_probe(self):
+    def retract_probe(self, position_cm):
         print("jvl drive retract probe")
-        requested_position_cm = config.min_position_counts * config.Convert.COUNT2CM.value
-        print(f"Request to move to position {requested_position_cm} cm")
-        self.set_requested_position(requested_position_cm)
+        print(f"Request to move to position {position_cm} cm")
+        self.set_requested_position(position_cm)
         time.sleep(0.005)
         self.set_operating_mode(2)
         print("finished jvl drive retract probe")

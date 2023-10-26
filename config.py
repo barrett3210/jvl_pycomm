@@ -14,13 +14,12 @@ callback = None
 move_down_distance = 2.5
 
 min_position_counts = 10000
+min_position_cm = 0.2
 
 insertion_stops = [1.0, 2.0, 4.0, 6.0]
-insertion_interrupt = False
-insertion_start_position = 0.0
 spectra_done = False
 insertion_in_progress = False
-insertion_step_count = 0
+
 
 class Convert(Enum):
     COUNT2CM = 0.0000206809
