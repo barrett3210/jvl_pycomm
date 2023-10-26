@@ -17,9 +17,6 @@ import dialogs
 import jvl_controller as jvl
 
 
-# from config import read_assembly, requested_items, in_position, Convert
-
-
 def get_current_time():
     return np.datetime64(datetime.datetime.now()).astype(np.int64)
 
@@ -74,7 +71,7 @@ def on_disable_drive():
     elif config.options_text == "2":
         if config.insertion_in_progress:
             print("resuming insertion")
-            begin_insertion_step(config.insertion_step_count)
+            # begin_insertion_step(config.insertion_step_count)
         else:
             print(f"setting operating mode to {config.requested_mode}")
             jvl_drive.set_operating_mode(config.requested_mode)
@@ -87,63 +84,7 @@ def on_disable_drive():
 
 def on_insertion_movement_button():
     print("Insertion movement button")
-    start_insertion()
-
-
-def start_insertion():
-    config.insertion_interrupt = False
-    config.my_in_position = False
-    config.insertion_in_progress = True
-    config.insertion_start_position = config.read_assembly['position'] * config.Convert.COUNT2CM.value
-    config.insertion_step_count = 0
-    app.after_idle(lambda: begin_insertion_step(config.insertion_step_count))
-
-
-def begin_insertion_step(count):
-    if config.insertion_interrupt:
-        finish_insertion()
-        return
-    print(f"step {count} begins")
-    config.spectra_done = False
-    config.my_in_position = False
-    stop = config.insertion_stops[count] + config.insertion_start_position
-    jvl_drive.move_to_insertion_stop(stop)
-    app.after_idle(wait_for_in_position)
-    app.after_idle(lambda: check_for_in_position(count))
-
-
-def check_for_in_position(count):
-    if config.insertion_interrupt:
-        finish_insertion()
-    elif config.my_in_position:
-        print(f"In position for count {count}")
-        take_spectra(count)
-    else:
-        app.after_idle(lambda: check_for_in_position(count))
-
-
-def take_spectra(count):
-    spectrometer_action.simulate_spectrometer_action()
-    check_for_spectra_done(count)
-
-
-def check_for_spectra_done(count):
-    if config.insertion_interrupt:
-        finish_insertion()
-    elif config.spectra_done:
-        print(f"insertion step {count} ends")
-        count += 1
-        if count < len(config.insertion_stops):
-            begin_insertion_step(count)
-        else:
-            finish_insertion()
-    else:
-        app.after_idle(lambda: check_for_spectra_done(count))
-
-
-def finish_insertion():
-    print("finish insertion")
-    config.insertion_in_progress = False
+    insertion_movement = InsertionMovement()
 
 
 def on_interrupt_insertion_button():
@@ -174,6 +115,59 @@ def wait_for_mode_0():
         config.enable_drive = False
         return
     app.after(200, wait_for_mode_0)
+
+
+class InsertionMovement:
+    def __init__(self):
+        self.interrupt = False
+        self.in_progress = True
+        self.start_position = config.read_assembly['position'] * config.Convert.COUNT2CM.value
+        self.step_count = 0
+        config.spectra_done = False
+        config.my_in_position = False
+        app.after_idle(self.begin_insertion_step)
+
+    def begin_insertion_step(self):
+        if self.interrupt:
+            self.finish_insertion()
+            return
+        print(f"step {self.step_count} begins")
+        config.spectra_done = False
+        config.my_in_position = False
+        stop = config.insertion_stops[self.step_count] + self.start_position
+        jvl_drive.move_to_insertion_stop(stop)
+        app.after_idle(wait_for_in_position)
+        app.after_idle(self.check_for_in_position)
+
+    def check_for_in_position(self):
+        if self.interrupt:
+            self.finish_insertion()
+        elif config.my_in_position:
+            print(f"In position for count {self.step_count}")
+            self.take_spectra()
+        else:
+            app.after_idle(self.check_for_in_position)
+
+    def take_spectra(self):
+        spectrometer_action.simulate_spectrometer_action()
+        self.check_for_spectra_done()
+
+    def check_for_spectra_done(self):
+        if self.interrupt:
+            self.finish_insertion()
+        elif config.spectra_done:
+            print(f"insertion step {self.step_count} ends")
+            self.step_count += 1
+            if self.step_count < len(config.insertion_stops):
+                self.begin_insertion_step()
+            else:
+                self.finish_insertion()
+        else:
+            app.after_idle(self.check_for_spectra_done)
+
+    def finish_insertion(self):
+        print("finish insertion")
+        self.in_progress = False
 
 
 class LabelsFrame(ttk.Frame):
@@ -389,8 +383,6 @@ class Application(tk.Tk):
             self.after(10, self.poll_enable_switch)
 
     def update_labels(self, poll=True):
-        # now = datetime.datetime.now().time()
-
         # read info from motor
         config.read_assembly = jvl_drive.read_assembly_object()
         config.in_position = config.read_assembly['register 35'][4]
