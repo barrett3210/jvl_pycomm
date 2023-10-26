@@ -9,11 +9,9 @@ enable_drive = False
 requested_mode = 0
 options_text = "0"
 
-callback = None
+handle = None
 
-move_down_distance = 2.5
-
-min_position_counts = 10000
+move_down_cm = 2.5
 min_position_cm = 0.2
 
 insertion_stops = [1.0, 2.0, 4.0, 6.0]

@@ -45,13 +45,12 @@ def on_velocity_mode_button():
 
 def on_move_down_button():
     print("Pushed moved down button!")
-    app.movement = RelativeMovement(config.move_down_distance)
+    app.movement = RelativeMovement(move_down_cm=config.move_down_cm)
 
 
 def on_retract_probe_button():
     print("retract probe")
-    app.movement = AbsoluteMovement(config.min_position_cm)
-
+    app.movement = AbsoluteMovement(position_cm=config.min_position_cm)
 
 
 def on_invoke_reset_drive_dialog():
@@ -89,16 +88,8 @@ def on_interrupt_insertion_button():
     app.insertion.interrupt = True
     app.insertion.in_progress = False
 
-
-def wait_for_in_position():
-    config.read_assembly = jvl_drive.read_assembly_object()
-    config.in_position = config.read_assembly['register 35'][4]
-    if config.in_position:
-        print("In position?????")
-        jvl_drive.set_operating_mode(0)
-        config.my_in_position = True
-        return True
-    config.callback = app.after(200, wait_for_in_position)
+def on_interrupt_movement_button():
+    app.movement.interrupt = True
 
 
 def wait_for_mode_0():
@@ -114,39 +105,53 @@ def wait_for_mode_0():
     app.after(200, wait_for_mode_0)
 
 
-class AbsoluteMovement:
-    def __init__(self, position_cm):
+class Movement:
+    def __init__(self, *args, **kwargs):
         self.interrupt = False
-        self.in_progress = False
+        self.in_progress = True
+
+    def wait_for_in_position(self):
+        config.read_assembly = jvl_drive.read_assembly_object()
+        config.in_position = config.read_assembly['register 35'][4]
+        if config.in_position:
+            print("In position?????")
+            jvl_drive.set_operating_mode(0)
+            config.my_in_position = True
+            return True
+        if self.interrupt:
+            jvl_drive.set_operating_mode(0)
+            return False
+        config.handle = app.after(200, self.wait_for_in_position)
+
+
+class AbsoluteMovement(Movement):
+    def __init__(self, position_cm=config.min_position_cm, **kwargs):
+        super().__init__(**kwargs)
         self.position_cm = position_cm
         self.move()
 
     def move(self):
         config.my_in_position = False
         jvl_drive.retract_probe(self.position_cm)
-        app.after_idle(wait_for_in_position)
+        app.after_idle(self.wait_for_in_position)
         print("end of on_retract_probe_button")
 
 
-class RelativeMovement:
-    def __init__(self, move_down_cm):
-        self.interrupt = False
-        self.in_progress = False
+class RelativeMovement(Movement):
+    def __init__(self, move_down_cm=config.move_down_cm, **kwargs):
+        super().__init__(**kwargs)
         self.move_down_cm = move_down_cm  # negative values move up
-
         self.move_down()
 
     def move_down(self):
         config.my_in_position = False
         jvl_drive.move_down(self.move_down_cm)
-        app.after_idle(wait_for_in_position)
+        app.after_idle(self.wait_for_in_position)
 
 
-
-class InsertionMovement:
-    def __init__(self):
-        self.interrupt = False
-        self.in_progress = True
+class InsertionMovement(Movement):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.start_position = config.read_assembly['position'] * config.Convert.COUNT2CM.value
         self.step_count = 0
         self.spectra = []
@@ -163,7 +168,7 @@ class InsertionMovement:
         config.my_in_position = False
         stop = config.insertion_stops[self.step_count] + self.start_position
         jvl_drive.move_to_insertion_stop(stop)
-        app.after_idle(wait_for_in_position)
+        app.after_idle(self.wait_for_in_position)
         app.after_idle(self.check_for_in_position)
 
     def check_for_in_position(self):
@@ -344,6 +349,10 @@ class ActionsFrame(ttk.Frame):
         self.invoke_reset_drive_dialog = ttk.Button(self, text="reset drive",
                                                     command=on_invoke_reset_drive_dialog)
         self.invoke_reset_drive_dialog.grid(row=34, column=0)
+
+        self.interrupt_movement_button = ttk.Button(self, text="Interrupt movement",
+                                                    command=on_interrupt_movement_button)
+        self.interrupt_movement_button.grid(row=35, column=0)
 
     def on_position_request_button(self):
         position_request = float(self.position_request_text.get())
