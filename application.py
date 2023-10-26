@@ -375,22 +375,29 @@ class Application(tk.Tk):
         # ************
         self.update_labels()
 
-    def update_labels(self, poll=True):
-        now = datetime.datetime.now().time()
-        self.labels_frame.time_label_text.set(time.strftime("%H:%M:%S"))
+        # poll for enable switch
+        self.poll_enable_switch()
 
+    def poll_enable_switch(self, poll=True):
         config.read_assembly = jvl_drive.read_assembly_object()
         config.enable_drive = config.read_assembly['digital inputs'][0]
-        # the enable switch option
-        # need a way to reset and return to action or leave it.
-
-        if not config.read_assembly['digital inputs'][0]:
+        if not config.enable_drive:
             if config.read_assembly['operating mode'] != 0:
                 jvl_drive.set_operating_mode(0)
-                print("setting operating mode to zero")
+                print("enable switch off; setting operating mode to zero")
+        if poll:
+            self.after(10, self.poll_enable_switch)
 
+    def update_labels(self, poll=True):
+        # now = datetime.datetime.now().time()
 
+        # read info from motor
+        config.read_assembly = jvl_drive.read_assembly_object()
         config.in_position = config.read_assembly['register 35'][4]
+        config.requested_items = jvl_drive.read_requested_items()
+
+        # update the labels
+        self.labels_frame.time_label_text.set(time.strftime("%H:%M:%S"))
 
         self.labels_frame.operating_mode_text.set(f"{config.read_assembly['operating mode']}")
         self.labels_frame.position_text.set(
@@ -403,7 +410,7 @@ class Application(tk.Tk):
                                               f"{int(config.read_assembly['digital inputs'][2])}\n")
         self.labels_frame.error_register_text.set(f"{int(config.read_assembly['register 35'][4])}\n"
                                                   f"{int(config.read_assembly['register 35'][24])}\n")
-        config.requested_items = jvl_drive.read_requested_items()
+
         self.labels_frame.requested_items_text.set(
             f"\n{config.requested_items[0] * config.Convert.COUNT2CM.value:0.1f} cm\n"
             f"{config.requested_items[1] * config.Convert.VELOCITY2CMSEC.value:0.2f} cm/s\n"
@@ -418,7 +425,7 @@ class Application(tk.Tk):
             config.enable_drive
         )
         if poll:
-            self.after(10, self.update_labels)
+            self.after(100, self.update_labels)
 
 
 if __name__ == '__main__':
@@ -428,7 +435,7 @@ if __name__ == '__main__':
     print("drive_path", jvl_drive.drive_path)
     print("Identity", jvl_drive.identity)
     print("is connected", jvl_drive.is_connected())
-    time.sleep(1)
+    time.sleep(2)
 
     app = Application()
     app.mainloop()
